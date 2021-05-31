@@ -10,9 +10,6 @@ from detectron2.data import MetadataCatalog, DatasetCatalog
 
 import time
 
-
-
-
 import sys
 import os
 import os.path as osp
@@ -24,10 +21,11 @@ import torchvision.transforms as transforms
 from torch.nn.parallel.data_parallel import DataParallel
 import torch.backends.cudnn as cudnn
 
-project_path = "./3DMPPE_POSENET_RELEASE"
+project_path = os.getcwd() + "/3DMPPE_POSENET_RELEASE_moon"
 sys.path.insert(0, osp.join(project_path, 'main'))
 sys.path.insert(0, osp.join(project_path, 'data'))
 sys.path.insert(0, osp.join(project_path, 'common'))
+
 from config import cfg
 from model import get_pose_net
 from dataset import generate_patch_image
