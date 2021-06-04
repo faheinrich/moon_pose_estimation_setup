@@ -10,4 +10,9 @@ python faster_rcnn_example.py --gpu 0
 requires detectron2 for fasterrcnn for bounding boxes.
 
 Download https://drive.google.com/drive/folders/1SKzmLk21mo3o24q_eB-4z7t1Sa9ozJ80
-and put into 3DMPPE_POSENET_RELEASE/demo
+and put into posenet/demo
+
+Download https://drive.google.com/drive/folders/1nQfOIgc7_AG5xPAO-vtG_L0WxdOelxet
+and put into rootnet/demo
+
+
