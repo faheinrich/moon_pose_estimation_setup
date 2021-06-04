@@ -5,9 +5,9 @@ Uses code of https://arxiv.org/abs/1907.11346.
 Modification of https://github.com/mks0601/3DMPPE_POSENET_RELEASE and https://github.com/mks0601/3DMPPE_ROOTNET_RELEASE which predicts poses on webcam images
 
 Run:
-python faster_rcnn_example.py --gpu 0 --test_epoch 24
+python faster_rcnn_example.py --gpu 0
 
-requires detectron2 for fasterrcnn.
+requires detectron2 for fasterrcnn for bounding boxes.
 
 Download https://drive.google.com/drive/folders/1SKzmLk21mo3o24q_eB-4z7t1Sa9ozJ80
 and put into 3DMPPE_POSENET_RELEASE/demo
