@@ -1,6 +1,8 @@
 # moon_pose_with_detectron2
 
-Modification of https://github.com/mks0601/3DMPPE_POSENET_RELEASE which predicts poses on webcam images
+Uses code of https://arxiv.org/abs/1907.11346.
+
+Modification of https://github.com/mks0601/3DMPPE_POSENET_RELEASE and https://github.com/mks0601/3DMPPE_ROOTNET_RELEASE which predicts poses on webcam images
 
 Run:
 python faster_rcnn_example.py --gpu 0 --test_epoch 24
