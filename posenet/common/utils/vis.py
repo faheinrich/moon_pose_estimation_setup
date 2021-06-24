@@ -155,6 +155,6 @@ def vis_3d_multiple_skeleton_no_show_but_savefig(kpt_3d, kpt_3d_vis, kps_lines, 
     ax.set_zlabel('Y Label')
     ax.legend()
     
-    plt.savefig("poses.png")
+    plt.savefig("pose3d.png")
    # cv2.waitKey(0)
 

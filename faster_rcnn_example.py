@@ -153,11 +153,13 @@ def main():
 
         model_input = detector_transform(original_img).unsqueeze(0).to(device)
         outputs = detector_model(model_input)
-    
+        labels = outputs[0]['labels'].cpu().detach().numpy()
+        # print(labels)
         pred_scores = outputs[0]['scores'].cpu().detach().numpy()
         pred_bboxes = outputs[0]['boxes'].cpu().detach().numpy()
         bbox_list = pred_bboxes[pred_scores >= detector_score_threshold]
-
+        labels = labels[pred_scores >= detector_score_threshold]
+        bbox_list = bbox_list[labels==1]
         pose_time = time.time()
 
 
@@ -181,9 +183,6 @@ def main():
             root_depth_list[n] = root_3d[2]
 
 
-
-        # assert len(bbox_list) == len(root_depth_list)
-  
 
         if person_num < 1:
             continue
@@ -209,7 +208,8 @@ def main():
             pose_3d_xy1 = np.concatenate((pose_3d[:,:2], np.ones_like(pose_3d[:,:1])),1)
             img2bb_trans_001 = np.concatenate((img2bb_trans, np.array([0,0,1]).reshape(1,3)))
             pose_3d[:,:2] = np.dot(np.linalg.inv(img2bb_trans_001), pose_3d_xy1.transpose(1,0)).transpose(1,0)[:,:2]
-            
+            output_pose_2d[n] = pose_3d[:,:2]
+
             # root-relative discretized depth -> absolute continuous depth
             pose_3d[:,2] = (pose_3d[:,2] / posenet_cfg.depth_dim * 2 - 1) * (posenet_cfg.bbox_3d_shape[0]/2) + root_depth_list[n]
             pose_3d = pixel2cam(pose_3d, focal, princpt)
@@ -218,9 +218,22 @@ def main():
 
         print("time:%.4f," % (time.time() - whole_time), "boxes:%.4f," % (time.time() - boxes_time), "pose:%.4f" % (time.time() - pose_time))
 
-        cv2.imwrite("frame.jpg", original_img)
-        np.save("result3d.npy", output_pose_3d)
-        
+
+        # cv2.imwrite("frame.jpg", original_img)
+
+        # visualize 2d poses
+        vis_img = original_img.copy()
+        for n in range(person_num):
+            vis_kps = np.zeros((3,joint_num))
+            vis_kps[0,:] = output_pose_2d[n][:,0]
+            vis_kps[1,:] = output_pose_2d[n][:,1]
+            vis_kps[2,:] = 1
+            img_2d = vis_keypoints(vis_img, vis_kps, skeleton)
+        cv2.imwrite("pose2d.jpg", img_2d)
+
+        vis_kps = np.array(output_pose_3d)
+        vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
+
 
     cap.release()
 
