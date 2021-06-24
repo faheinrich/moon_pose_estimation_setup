@@ -1,4 +1,4 @@
-# moon_pose_with_detectron2
+# moon_pose_estimation_setup
 
 Uses code of https://arxiv.org/abs/1907.11346.
 
