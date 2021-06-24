@@ -1,12 +1,5 @@
 import cv2
-# import mediapipe as mp
-
-import detectron2
-from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
-from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog, DatasetCatalog
+import mediapipe as mp
 
 import math
 import time
@@ -31,7 +24,6 @@ from posenet.main.config import cfg as posenet_cfg
 from posenet.main.model import get_pose_net 
 from posenet.data.dataset import generate_patch_image
 from posenet.common.utils.pose_utils import process_bbox, pixel2cam
-from posenet.common.utils.vis import vis_keypoints, vis_3d_multiple_skeleton, vis_3d_multiple_skeleton_no_show_but_savefig
 
 import matplotlib.pyplot as plt
 
@@ -45,28 +37,31 @@ from rootnet.main.model import get_pose_net as get_root_net
 from rootnet.common.utils.pose_utils import process_bbox as rootnet_process_bbox
 from rootnet.data.dataset import generate_patch_image as rootnet_generate_patch_image
 
+import torchvision
 
+from posenet.common.utils.vis import vis_keypoints, vis_3d_multiple_skeleton, vis_3d_multiple_skeleton_no_show_but_savefig
+
+
+
+# import tensorflow_hub as hub
+# import tensorflow as tf
 
 def main():
     """
     Camera Distance-aware Top-down Approach for 3D Multi-person PoseEstimation from a Single RGB Image
     """
 
+    
 
-    model_yaml = "COCO-Detection/faster_rcnn_R_50_FPN_1x.yaml"
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    detector_model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True, pretrained_backbone=True)
+    detector_model.eval().to(device)
 
-    score_threshold = 0.65
+    detector_score_threshold = 0.8
+    detector_transform = transforms.Compose([
+        transforms.ToTensor(),
+    ])
 
-    bbox_cfg = get_cfg()   # get a fresh new config
-    bbox_cfg.merge_from_file(model_zoo.get_config_file(model_yaml))
-    bbox_cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = score_threshold  # set threshold for this model
-    bbox_cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(model_yaml)
-    predictor = DefaultPredictor(bbox_cfg)
-
-
-    class_label_names = MetadataCatalog.get(bbox_cfg.DATASETS.TRAIN[0]).thing_classes
-
-    # python demo.py --gpu 0 --test_epoch 24
 
 
     def parse_args():
@@ -111,6 +106,7 @@ def main():
     model.load_state_dict(ckpt['network'])
     model.eval()
 
+
     # snapshot load rootnet
     model_path_rootnet = rootnet_path + '/demo/snapshot_%d.pth.tar' % int(18)
     assert osp.exists(model_path_rootnet), 'Cannot find model at ' + model_path_rootnet
@@ -141,34 +137,32 @@ def main():
     cap = cv2.VideoCapture(0)
     while cap.isOpened():
         
+        # print("+++++++++++++++++")
         
         success, original_img = cap.read()
         if not success:
             print("Webcam failed somehow?")
             continue
 
+
+        whole_time = time.time()
+
         # get bboxes
         boxes_time = time.time()
         
-        outputs = predictor(original_img)
-        output_fields = outputs['instances'].get_fields()
-        pred_boxes = output_fields['pred_boxes']
-        pred_scores = output_fields['scores']
-        pred_classes = output_fields['pred_classes'].cpu().numpy()
-        human_pred_boxes = pred_boxes[pred_classes==0]
 
-        print("boxes_time", time.time() - boxes_time)
-        
+        model_input = detector_transform(original_img).unsqueeze(0).to(device)
+        outputs = detector_model(model_input)
+    
+        pred_scores = outputs[0]['scores'].cpu().detach().numpy()
+        pred_bboxes = outputs[0]['boxes'].cpu().detach().numpy()
+        bbox_list = pred_bboxes[pred_scores >= detector_score_threshold]
 
         pose_time = time.time()
 
-        bbox_list = human_pred_boxes.tensor.cpu().numpy()
 
-        # root_depth_list = [12000] * len(bbox_list)
 
-        
-        
-        
+
         # calculate roots
         person_num = len(bbox_list)
         root_depth_list = np.zeros(person_num)
@@ -188,7 +182,7 @@ def main():
 
 
 
-        assert len(bbox_list) == len(root_depth_list)
+        # assert len(bbox_list) == len(root_depth_list)
   
 
         if person_num < 1:
@@ -196,13 +190,9 @@ def main():
 
 
 
-
-
-
-
         # for each cropped and resized human image, forward it to PoseNet
-        output_pose_2d_list = []
-        output_pose_3d_list = []
+        output_pose_2d = np.zeros((person_num, joint_num, 2))
+        output_pose_3d = np.zeros((person_num, joint_num, 3))
         for n in range(person_num):
             bbox = process_bbox(np.array(bbox_list[n]), original_img_width, original_img_height)
             img, img2bb_trans = generate_patch_image(original_img, bbox, False, 1.0, 0.0, False) 
@@ -219,56 +209,19 @@ def main():
             pose_3d_xy1 = np.concatenate((pose_3d[:,:2], np.ones_like(pose_3d[:,:1])),1)
             img2bb_trans_001 = np.concatenate((img2bb_trans, np.array([0,0,1]).reshape(1,3)))
             pose_3d[:,:2] = np.dot(np.linalg.inv(img2bb_trans_001), pose_3d_xy1.transpose(1,0)).transpose(1,0)[:,:2]
-            output_pose_2d_list.append(pose_3d[:,:2].copy())
             
             # root-relative discretized depth -> absolute continuous depth
             pose_3d[:,2] = (pose_3d[:,2] / posenet_cfg.depth_dim * 2 - 1) * (posenet_cfg.bbox_3d_shape[0]/2) + root_depth_list[n]
             pose_3d = pixel2cam(pose_3d, focal, princpt)
-            output_pose_3d_list.append(pose_3d.copy())
+            output_pose_3d[n] = pose_3d
 
 
-        # print("pose_time"
-        visualize 2d poses
-        vis_img = original_img.copy()
-        for n in range(person_num):
-            vis_kps = np.zeros((3,joint_num))
-            vis_kps[0,:] = output_pose_2d_list[n][:,0]
-            vis_kps[1,:] = output_pose_2d_list[n][:,1]
-            vis_kps[2,:] = 1
-            vis_img = vis_keypoints(vis_img, vis_kps, skeleton)
-        cv2.imwrite('output_pose_2d.jpg', vis_img)
-        cv2.imshow('vis img', cv2.resize(vis_img, (vis_img.shape[1]*2,vis_img.shape[0]*2 )))
+        print("time:%.4f," % (time.time() - whole_time), "boxes:%.4f," % (time.time() - boxes_time), "pose:%.4f" % (time.time() - pose_time))
 
-        # visualize 3d poses
-        vis_kps = np.array(output_pose_3d_list)
-        vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
-
-        vis_img = cv2.imread("poses.png")[:,:,::-1]
-
-
-        cv2, time.time() - pose_time)        
+        cv2.imwrite("frame.jpg", original_img)
+        np.save("result3d.npy", output_pose_3d)
         
-        # # visualize 2d poses
-        vis_img = original_img.copy()
-        for n in range(person_num):
-            vis_kps = np.zeros((3,joint_num))
-            vis_kps[0,:] = output_pose_2d_list[n][:,0]
-            vis_kps[1,:] = output_pose_2d_list[n][:,1]
-            vis_kps[2,:] = 1
-            vis_img = vis_keypoints(vis_img, vis_kps, skeleton)
-        cv2.imwrite('output_pose_2d.jpg', vis_img)
-        cv2.imshow('vis img', cv2.resize(vis_img, (vis_img.shape[1]*2,vis_img.shape[0]*2 )))
 
-        # visualize 3d poses
-        vis_kps = np.array(output_pose_3d_list)
-        vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
-
-        vis_img = cv2.imread("poses.png")[:,:,::-1]
-
-
-        cv2.imshow("poses und so", cv2.resize(vis_img, (vis_img.shape[1]*2,vis_img.shape[0]*2)))
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
     cap.release()
 
 
