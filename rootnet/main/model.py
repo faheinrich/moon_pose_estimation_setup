@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from nets.resnet import ResNetBackbone
-from config import cfg
+from rootnet.main.config import cfg
 
 class RootNet(nn.Module):
 

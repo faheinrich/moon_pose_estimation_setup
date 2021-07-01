@@ -6,7 +6,7 @@ import torch
 import copy
 import math
 from torch.utils.data.dataset import Dataset
-from config import cfg
+from rootnet.main.config import cfg
 
 class DatasetLoader(Dataset):
     def __init__(self, db, is_train, transform):

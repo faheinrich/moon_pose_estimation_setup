@@ -16,9 +16,6 @@ from torch.nn.parallel.data_parallel import DataParallel
 import torch.backends.cudnn as cudnn
 
 posenet_path = os.getcwd() + "/posenet"
-sys.path.insert(0, osp.join(posenet_path, 'main'))
-sys.path.insert(0, osp.join(posenet_path, 'data'))
-sys.path.insert(0, osp.join(posenet_path, 'common'))
 
 from posenet.main.config import cfg as posenet_cfg
 from posenet.main.model import get_pose_net 
@@ -29,9 +26,7 @@ import matplotlib.pyplot as plt
 
 
 rootnet_path = os.getcwd() + "/rootnet"
-sys.path.insert(0, osp.join(rootnet_path, 'main'))
-sys.path.insert(0, osp.join(rootnet_path, 'data'))
-sys.path.insert(0, osp.join(rootnet_path, 'common'))
+
 from rootnet.main.config import cfg as rootnet_cfg
 from rootnet.main.model import get_pose_net as get_root_net
 from rootnet.common.utils.pose_utils import process_bbox as rootnet_process_bbox
@@ -43,24 +38,33 @@ from posenet.common.utils.vis import vis_keypoints, vis_3d_multiple_skeleton, vi
 
 
 
-# import tensorflow_hub as hub
-# import tensorflow as tf
 
 def main():
     """
     Camera Distance-aware Top-down Approach for 3D Multi-person PoseEstimation from a Single RGB Image
     """
 
-    
 
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    detector_model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True, pretrained_backbone=True)
-    detector_model.eval().to(device)
 
-    detector_score_threshold = 0.8
-    detector_transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
+    use_yolo = False
+    if use_yolo:
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        # Model
+        detector_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+        detector_model.eval().to(device)
+        detector_model.classes = [0] # filter for specific classes
+
+    else:
+
+    # FASTER RCNN v3 320 fpn
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        detector_model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True, pretrained_backbone=True)
+        detector_model.eval().to(device)
+
+        detector_score_threshold = 0.8
+        detector_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
 
 
 
@@ -151,6 +155,7 @@ def main():
         boxes_time = time.time()
         
 
+# FASTER RCNN
         model_input = detector_transform(original_img).unsqueeze(0).to(device)
         outputs = detector_model(model_input)
         labels = outputs[0]['labels'].cpu().detach().numpy()
@@ -162,25 +167,31 @@ def main():
         bbox_list = bbox_list[labels==1]
         pose_time = time.time()
 
+        if use_yolo:
+        # YOLO
+            model_output = model(frame)
+            results = model_output.pandas().xyxy[0]
+            pred_classes = results["name"]
+            labels = results["class"]
+            boxes = model_output.xyxy[0].cpu().numpy()[:,:4].astype(np.int32)
 
+        else: 
+            # calculate roots
+            person_num = len(bbox_list)
+            root_depth_list = np.zeros(person_num)
+            for n in range(person_num):
+                bbox = rootnet_process_bbox(np.array(bbox_list[n]), original_img_width, original_img_height)
+                img, img2bb_trans = rootnet_generate_patch_image(original_img, bbox, False, 0.0) 
+                img = rootnet_transform(img).cuda()[None,:,:,:]
+                k_value = np.array([math.sqrt(rootnet_cfg.bbox_real[0]*rootnet_cfg.bbox_real[1]*focal[0]*focal[1]/(bbox[2]*bbox[3]))]).astype(np.float32)
+                k_value = torch.FloatTensor([k_value]).cuda()[None,:]
 
-
-        # calculate roots
-        person_num = len(bbox_list)
-        root_depth_list = np.zeros(person_num)
-        for n in range(person_num):
-            bbox = rootnet_process_bbox(np.array(bbox_list[n]), original_img_width, original_img_height)
-            img, img2bb_trans = rootnet_generate_patch_image(original_img, bbox, False, 0.0) 
-            img = rootnet_transform(img).cuda()[None,:,:,:]
-            k_value = np.array([math.sqrt(rootnet_cfg.bbox_real[0]*rootnet_cfg.bbox_real[1]*focal[0]*focal[1]/(bbox[2]*bbox[3]))]).astype(np.float32)
-            k_value = torch.FloatTensor([k_value]).cuda()[None,:]
-
-            # forward
-            with torch.no_grad():
-                root_3d = rootnet_model(img, k_value) # x,y: pixel, z: root-relative depth (mm)
-            img = img[0].cpu().numpy()
-            root_3d = root_3d[0].cpu().numpy()
-            root_depth_list[n] = root_3d[2]
+                # forward
+                with torch.no_grad():
+                    root_3d = rootnet_model(img, k_value) # x,y: pixel, z: root-relative depth (mm)
+                img = img[0].cpu().numpy()
+                root_3d = root_3d[0].cpu().numpy()
+                root_depth_list[n] = root_3d[2]
 
 
 
@@ -222,17 +233,17 @@ def main():
         # cv2.imwrite("frame.jpg", original_img)
 
         # visualize 2d poses
-        vis_img = original_img.copy()
-        for n in range(person_num):
-            vis_kps = np.zeros((3,joint_num))
-            vis_kps[0,:] = output_pose_2d[n][:,0]
-            vis_kps[1,:] = output_pose_2d[n][:,1]
-            vis_kps[2,:] = 1
-            img_2d = vis_keypoints(vis_img, vis_kps, skeleton)
-        cv2.imwrite("pose2d.jpg", img_2d)
+        # vis_img = original_img.copy()
+        # for n in range(person_num):
+        #     vis_kps = np.zeros((3,joint_num))
+        #     vis_kps[0,:] = output_pose_2d[n][:,0]
+        #     vis_kps[1,:] = output_pose_2d[n][:,1]
+        #     vis_kps[2,:] = 1
+        #     img_2d = vis_keypoints(vis_img, vis_kps, skeleton)
+        # cv2.imwrite("pose2d.jpg", img_2d)
 
-        vis_kps = np.array(output_pose_3d)
-        vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
+        # vis_kps = np.array(output_pose_3d)
+        # vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
 
 
     cap.release()

@@ -8,7 +8,7 @@ import math
 from torch.utils.data.dataset import Dataset
 from utils.vis import vis_keypoints, vis_3d_skeleton
 from utils.pose_utils import fliplr_joints, transform_joint_to_other_db
-from config import cfg
+from posenet.main.config import cfg
 
 class DatasetLoader(Dataset):
     def __init__(self, db, ref_joints_name, is_train, transform):

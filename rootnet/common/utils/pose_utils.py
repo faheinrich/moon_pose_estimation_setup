@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from config import cfg
+from rootnet.main.config import cfg
 import copy
 
 def cam2pixel(cam_coord, f, c):

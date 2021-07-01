@@ -4,7 +4,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from config import cfg
+from posenet.main.config import cfg
 
 def vis_keypoints(img, kps, kps_lines, kp_thresh=0.4, alpha=1):
 
