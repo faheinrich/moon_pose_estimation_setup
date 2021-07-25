@@ -7,6 +7,8 @@ Modification of https://github.com/mks0601/3DMPPE_POSENET_RELEASE and https://gi
 Run:
 python faster_rcnn_example.py --gpu 0
 
+or moon_pose_ros.py --gpu 0 to start a processing ros-node.
+
 
 Download https://drive.google.com/drive/folders/1SKzmLk21mo3o24q_eB-4z7t1Sa9ozJ80
 and put into posenet/demo
