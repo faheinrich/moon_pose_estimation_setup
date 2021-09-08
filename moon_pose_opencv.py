@@ -101,7 +101,7 @@ def main():
     skeleton = ( (0, 16), (16, 1), (1, 15), (15, 14), (14, 8), (14, 11), (8, 9), (9, 10), (10, 19), (11, 12), (12, 13), (13, 20), (1, 2), (2, 3), (3, 4), (4, 17), (1, 5), (5, 6), (6, 7), (7, 18) )
 
     # snapshot load posenet
-    model_path_posenet = posenet_path + '/demo/snapshot_%d.pth.tar' % int(24)
+    model_path_posenet = 'snapshot_24.pth.tar'
     assert osp.exists(model_path_posenet), 'Cannot find model at ' + model_path_posenet
     print('Load checkpoint from {}'.format(model_path_posenet))
     model = get_pose_net(posenet_cfg, False, joint_num)
@@ -112,7 +112,7 @@ def main():
 
 
     # snapshot load rootnet
-    model_path_rootnet = rootnet_path + '/demo/snapshot_%d.pth.tar' % int(18)
+    model_path_rootnet = 'snapshot_18.pth.tar'
     assert osp.exists(model_path_rootnet), 'Cannot find model at ' + model_path_rootnet
     print('Load checkpoint from {}'.format(model_path_rootnet))
     rootnet_model = get_root_net(rootnet_cfg, False)
@@ -230,20 +230,20 @@ def main():
         print("time:%.4f," % (time.time() - whole_time), "boxes:%.4f," % (time.time() - boxes_time), "pose:%.4f" % (time.time() - pose_time))
 
 
-        # cv2.imwrite("frame.jpg", original_img)
+        cv2.imwrite("frame.jpg", original_img)
 
         # visualize 2d poses
-        # vis_img = original_img.copy()
-        # for n in range(person_num):
-        #     vis_kps = np.zeros((3,joint_num))
-        #     vis_kps[0,:] = output_pose_2d[n][:,0]
-        #     vis_kps[1,:] = output_pose_2d[n][:,1]
-        #     vis_kps[2,:] = 1
-        #     img_2d = vis_keypoints(vis_img, vis_kps, skeleton)
-        # cv2.imwrite("pose2d.jpg", img_2d)
+        vis_img = original_img.copy()
+        for n in range(person_num):
+            vis_kps = np.zeros((3,joint_num))
+            vis_kps[0,:] = output_pose_2d[n][:,0]
+            vis_kps[1,:] = output_pose_2d[n][:,1]
+            vis_kps[2,:] = 1
+            img_2d = vis_keypoints(vis_img, vis_kps, skeleton)
+        cv2.imwrite("pose2d.jpg", img_2d)
 
-        # vis_kps = np.array(output_pose_3d)
-        # vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
+        vis_kps = np.array(output_pose_3d)
+        vis_3d_multiple_skeleton_no_show_but_savefig(vis_kps, np.ones_like(vis_kps), skeleton, 'output_pose_3d (x,y,z: camera-centered. mm.)')
 
 
     cap.release()
