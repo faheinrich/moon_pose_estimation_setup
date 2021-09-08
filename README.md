@@ -5,7 +5,7 @@ Uses code of https://arxiv.org/abs/1907.11346.
 Modification of https://github.com/mks0601/3DMPPE_POSENET_RELEASE and https://github.com/mks0601/3DMPPE_ROOTNET_RELEASE which predicts poses on webcam images
 
 Run:
-python faster_rcnn_example.py --gpu 0
+python moon_pose_opencv.py --gpu 0
 
 or moon_pose_ros.py --gpu 0 to start a processing ros-node.
 
