@@ -11,9 +11,9 @@ or moon_pose_ros.py --gpu 0 to start a processing ros-node.
 
 
 Download https://drive.google.com/drive/folders/1SKzmLk21mo3o24q_eB-4z7t1Sa9ozJ80
-and put into posenet/demo
+and put into the repo-folder.
 
 Download https://drive.google.com/drive/folders/1nQfOIgc7_AG5xPAO-vtG_L0WxdOelxet
-and put into rootnet/demo
+and put into the repo-folder.
 
 
